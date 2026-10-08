@@ -1,0 +1,3 @@
+[path]
+world_path = "./test/minecraft/world"
+store_path = "./test/sekai-store"
