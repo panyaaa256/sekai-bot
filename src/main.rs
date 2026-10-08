@@ -1,30 +1,53 @@
+use anyhow::Result;
+use config::Config;
 use poise::serenity_prelude as serenity;
-use std::env::temp_dir;
-use std::path::Path;
+mod command;
 
 struct Data {} // User data, which is stored and accessible in all command invocations
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Context<'a> = poise::Context<'a, Data, Error>;
+type Context<'a> = poise::Context<'a, Data, anyhow::Error>;
 
 #[poise::command(slash_command)]
-async fn age(
+async fn config(
     ctx: Context<'_>,
-    #[description = "Selected user"] user: Option<serenity::User>,
-) -> Result<(), Error> {
-    let u = user.as_ref().unwrap_or_else(|| ctx.author());
-    let response = format!("{}'s account was created at {}", u.name, u.created_at());
-    ctx.say(response).await?;
+    #[description = "Select action"]
+    #[choices("world_path", "store_path")]
+    key: &'static str,
+    value: String,
+) -> Result<()> {
+    let setting = Config::builder()
+        .add_source(config::File::with_name("settings"))
+        .build()?;
+    let world_path = setting.get_string(key)?;
+    let res = format!("{:?}, {}", world_path, value);
+    ctx.say(res).await?;
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+async fn backup(ctx: Context<'_>) -> Result<()> {
+    ctx.defer().await?;
+    let world_path = dotenvy::var("WORLD_PATH")?;
+    let store_path = dotenvy::var("SEKAI_PATH")?;
+    command::backup::run(&world_path, &store_path).await?;
+    ctx.say("Backup completed").await?;
+    println!("{}", ctx.author());
+    Ok(())
+}
+
+#[poise::command(slash_command)]
+async fn rollback(ctx: Context<'_>) -> Result<()> {
+    println!("{}", ctx.author());
     Ok(())
 }
 
 #[tokio::main]
 async fn main() {
-    let token = dotenv::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
+    let token = dotenvy::var("DISCORD_TOKEN").expect("missing DISCORD_TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![age()],
+            commands: vec![backup(), rollback(), config()],
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
@@ -39,42 +62,4 @@ async fn main() {
         .framework(framework)
         .await;
     client.unwrap().start().await.unwrap();
-}
-
-async fn backup() {
-    let root = temp_dir().join("test");
-    println!("{:?}", root);
-    let store = root.join("store");
-    let world = root.join("world");
-    write_region(world.join("region/r.0.0.mca"), &[(0, 0, vec![3, 1, 2, 3])]);
-    let mut instance = sekai_app::SekaiInstance::init(store.to_str().unwrap())
-        .await
-        .unwrap();
-    let (report, timings) = instance
-        .world_mut(world)
-        .backup(
-            sekai_app::BackupOptions::default(),
-            sekai_app::Scope::World,
-            |_| {},
-        )
-        .await
-        .unwrap();
-    println!("{:?}, {:?}", report, timings);
-    cleanup(root);
-}
-
-fn write_region(path: impl AsRef<Path>, chunks: &[(i32, i32, Vec<u8>)]) {
-    let name = path.as_ref().file_name().unwrap().to_str().unwrap();
-    let (rx, rz) = sekai_anvil::parse_region_name(name).unwrap();
-    let mut builder = sekai_anvil::RegionBuilder::new(rx, rz, 0).unwrap();
-    for (x, z, payload) in chunks {
-        builder.stage_chunk(*x, *z, payload).unwrap();
-    }
-    let image = builder.image().unwrap();
-    std::fs::create_dir_all(path.as_ref().parent().unwrap()).unwrap();
-    std::fs::write(path, image).unwrap();
-}
-
-fn cleanup(dir: impl AsRef<Path>) {
-    let _ = std::fs::remove_dir_all(dir);
 }
