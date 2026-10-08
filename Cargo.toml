@@ -8,5 +8,7 @@ sekai-app = { git = "https://github.com/TMCJapan/sekai.git", branch = "main" }
 sekai-anvil = { git = "https://github.com/TMCJapan/sekai.git", branch = "main" }
 tokio = "1.53.2"
 serenity = "0.12.5"
-dotenv = "0.15.0"
 poise = "0.7.0"
+dotenvy = "0.15.7"
+anyhow = "1.0.104"
+config = "0.15.27"
