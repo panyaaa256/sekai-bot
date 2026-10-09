@@ -1603,7 +1603,6 @@ dependencies = [
  "anyhow",
  "dotenvy",
  "poise",
- "sekai-anvil",
  "sekai-app",
  "serde",
  "serde_json",
