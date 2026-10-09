@@ -1,3 +1,4 @@
 /target
-/test
+/sample
+config.json
 .env
