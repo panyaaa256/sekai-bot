@@ -1,40 +1,74 @@
 use anyhow::Result;
-use config::Config;
 use poise::serenity_prelude as serenity;
-mod command;
+use std::path::PathBuf;
+use tokio::sync::Mutex;
 
-struct Data {} // User data, which is stored and accessible in all command invocations
+mod command;
+mod config;
+
 type Context<'a> = poise::Context<'a, Data, anyhow::Error>;
 
-#[poise::command(slash_command)]
-async fn config(
-    ctx: Context<'_>,
-    #[description = "Select action"]
-    #[choices("world_path", "store_path")]
-    key: &'static str,
-    value: String,
-) -> Result<()> {
-    let setting = Config::builder()
-        .add_source(config::File::with_name("settings"))
-        .build()?;
-    let world_path = setting.get_string(key)?;
-    let res = format!("{:?}, {}", world_path, value);
+struct Data {
+    store_lock: Mutex<()>,
+}
+
+#[derive(poise::ChoiceParameter, Debug)]
+enum Key {
+    RootPath,
+    Profile,
+}
+
+#[poise::command(slash_command, owners_only)]
+async fn config(ctx: Context<'_>, key: Key, value: String) -> Result<()> {
+    let mut config = config::Config::load()?;
+
+    match key {
+        Key::RootPath => {
+            let root = PathBuf::from(value);
+            config.root_path = root;
+        }
+        Key::Profile => {
+            //add custom area
+            ctx.say("not implemented").await?;
+            return Ok(());
+        }
+    }
+
+    config.save()?;
+    let res = format!("{}", config.root_path.display());
     ctx.say(res).await?;
+
     Ok(())
 }
 
-#[poise::command(slash_command)]
+#[poise::command(slash_command, owners_only)]
 async fn backup(ctx: Context<'_>) -> Result<()> {
     ctx.defer().await?;
-    let world_path = dotenvy::var("WORLD_PATH")?;
-    let store_path = dotenvy::var("SEKAI_PATH")?;
-    command::backup::run(&world_path, &store_path).await?;
+
+    let config = config::Config::load()?;
+    let world_path = config.root_path.join("world");
+    let store_path = config.root_path.join("sekai");
+
+    if config.root_path.as_os_str().is_empty() || !world_path.exists() {
+        ctx.say("set valid root path").await?;
+        return Ok(());
+    }
+
+    let Ok(_guard) = ctx.data().store_lock.try_lock() else {
+        ctx.say("backup is already running").await?;
+        return Ok(());
+    };
+
+    let report = command::backup::run(&world_path, &store_path).await?;
+    let res = format!("new blobs: {}", report.new_blobs);
+
     ctx.say("Backup completed").await?;
-    println!("{}", ctx.author());
+    ctx.say(res).await?;
+
     Ok(())
 }
 
-#[poise::command(slash_command)]
+#[poise::command(slash_command, owners_only)]
 async fn rollback(ctx: Context<'_>) -> Result<()> {
     println!("{}", ctx.author());
     Ok(())
@@ -53,7 +87,9 @@ async fn main() {
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data {})
+                Ok(Data {
+                    store_lock: Mutex::new(()),
+                })
             })
         })
         .build();
