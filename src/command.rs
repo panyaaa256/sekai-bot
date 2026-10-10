@@ -4,6 +4,7 @@ use sekai_app::HostWorldTree;
 
 pub mod backup;
 pub mod configure;
+pub mod profile;
 pub mod rollback;
 
 fn open_world() -> Result<(HostWorldTree, String)> {

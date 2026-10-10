@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -9,7 +10,7 @@ use std::{fs, io::ErrorKind};
 #[serde(default)]
 pub struct Config {
     pub root_path: PathBuf,
-    pub profiles: Vec<Profile>,
+    pub profiles: BTreeMap<String, Profile>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -18,18 +19,18 @@ pub struct Profile {
     area: (Chunk, Chunk),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-enum Dimension {
+#[derive(Serialize, Deserialize, Debug, poise::ChoiceParameter)]
+pub enum Dimension {
+    #[name = "overworld"]
     Overworld,
+    #[name = "the_nether"]
     Nether,
+    #[name = "the_end"]
     End,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Chunk {
-    x: i32,
-    z: i32,
-}
+pub struct Chunk(i32, i32);
 
 impl Config {
     fn from_json(file: File) -> Result<Config> {
@@ -49,8 +50,9 @@ impl Config {
         match File::open(Self::config_path()) {
             Ok(file) => Self::from_json(file),
             Err(e) if e.kind() == ErrorKind::NotFound => {
-                File::create_new(Self::config_path())?;
-                Ok(Self::default())
+                let config = Self::default();
+                Self::save(&config)?;
+                Ok(config)
             }
             Err(e) => Err(e.into()),
         }
@@ -78,5 +80,20 @@ impl Config {
             bail!("world directory not found: {}", self.world_path().display());
         }
         Ok(())
+    }
+}
+
+impl Profile {
+    pub fn new(dim: Dimension, chunk1: Chunk, chunk2: Chunk) -> Self {
+        Profile {
+            dim,
+            area: (chunk1, chunk2),
+        }
+    }
+}
+
+impl Chunk {
+    pub fn new(x: i32, z: i32) -> Self {
+        Chunk(x, z)
     }
 }

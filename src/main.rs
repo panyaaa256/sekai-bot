@@ -1,7 +1,7 @@
 use poise::serenity_prelude as serenity;
 use tokio::sync::Mutex;
 
-use crate::command::{backup, configure, rollback};
+use crate::command::{backup, configure, profile, rollback};
 
 mod command;
 mod config;
@@ -23,6 +23,7 @@ async fn main() {
                 backup::backup(),
                 rollback::rollback(),
                 configure::configure(),
+                profile::profile(),
             ],
             ..Default::default()
         })
