@@ -48,7 +48,10 @@ impl Config {
     pub fn load() -> Result<Self> {
         match File::open(Self::config_path()) {
             Ok(file) => Self::from_json(file),
-            Err(e) if e.kind() == ErrorKind::NotFound => Ok(Self::default()),
+            Err(e) if e.kind() == ErrorKind::NotFound => {
+                File::create_new(Self::config_path())?;
+                Ok(Self::default())
+            }
             Err(e) => Err(e.into()),
         }
     }
