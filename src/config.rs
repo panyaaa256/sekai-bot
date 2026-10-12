@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use sekai_app::{Area, Rect, Scope};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -88,6 +89,14 @@ impl Profile {
         Profile {
             dim,
             area: (chunk1, chunk2),
+        }
+    }
+
+    pub fn scope(&self) -> Scope {
+        let (a, b) = &self.area;
+        Scope::Select {
+            kinds: (Scope::all_kinds()),
+            areas: vec![(self.dim.into(), Area::Rect(Rect::new(a.0, a.1, b.0, b.1)))],
         }
     }
 }

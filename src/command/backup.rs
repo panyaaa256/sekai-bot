@@ -16,13 +16,7 @@ pub async fn backup(ctx: Context<'_>, name: Option<String>) -> Result<()> {
             let Some(profile) = config.profiles.get(&key) else {
                 bail!("profile not found: {key}");
             };
-            let dim = profile
-            Scop {
-                Select {
-                    Scope::all_kinds(),
-                }
-            }
-
+            profile.scope()
         }
         None => Scope::World,
     };
