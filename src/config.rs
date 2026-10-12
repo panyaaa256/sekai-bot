@@ -15,11 +15,11 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Profile {
-    dim: Dimension,
-    area: (Chunk, Chunk),
+    pub dim: Dimension,
+    pub area: (Chunk, Chunk),
 }
 
-#[derive(Serialize, Deserialize, Debug, poise::ChoiceParameter)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, poise::ChoiceParameter)]
 pub enum Dimension {
     #[name = "overworld"]
     Overworld,
@@ -88,6 +88,16 @@ impl Profile {
         Profile {
             dim,
             area: (chunk1, chunk2),
+        }
+    }
+}
+
+impl From<Dimension> for sekai_app::Dimension {
+    fn from(value: Dimension) -> Self {
+        match value {
+            Dimension::Overworld => Self::OVERWORLD,
+            Dimension::Nether => Self::NETHER,
+            Dimension::End => Self::END,
         }
     }
 }
