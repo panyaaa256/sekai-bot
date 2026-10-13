@@ -1,4 +1,6 @@
 use anyhow::Result;
+use poise::CreateReply;
+use poise::serenity_prelude::CreateEmbed;
 
 use crate::Context;
 use crate::config::{Chunk, Config, Dimension, Profile};
@@ -24,11 +26,13 @@ async fn add(
 
     let mut config = Config::load()?;
 
-    let res = format!("added: {profile:?}");
+    let embed = CreateEmbed::new()
+        .title("profile added")
+        .description(format!("profile: {name} added"));
     config.profiles.insert(name, profile);
     config.save()?;
-    ctx.say(res).await?;
 
+    ctx.send(CreateReply::new().embed(embed)).await?;
     Ok(())
 }
 
@@ -38,9 +42,9 @@ async fn remove(ctx: Context<'_>, name: String) -> Result<()> {
 
     if config.profiles.remove(&name).is_some() {
         config.save()?;
-        ctx.say("Deleted {name:?} successfully").await?;
+        ctx.say(format!("Deleted {name:?} successfully")).await?;
     } else {
-        ctx.say("{name:?} is not found").await?;
+        ctx.say(format!("{name:?} is not found")).await?;
     }
 
     Ok(())
@@ -51,8 +55,16 @@ async fn list(ctx: Context<'_>) -> Result<()> {
     let config = Config::load()?;
 
     for profile in config.profiles {
-        ctx.say(format!("{:?}", profile)).await?;
+        ctx.say(format!("{profile:?}")).await?;
     }
 
     Ok(())
+}
+
+fn summary(profile: &Profile, action: &str) -> CreateEmbed {
+    let rect = profile.rect();
+    let width = i64::from(rect.x1) - i64::from(rect.x0) + 1;
+    let depth = i64::from(rect.z1) - i64::from(rect.z0) + 1;
+
+    CreateEmbed::new().title(action)
 }

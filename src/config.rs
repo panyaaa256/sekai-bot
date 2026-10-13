@@ -104,11 +104,15 @@ impl Profile {
         }
     }
 
-    pub fn scope(&self) -> Scope {
+    pub fn rect(&self) -> Rect {
         let (a, b) = &self.area;
+        Rect::new(a.0, a.1, b.0, b.1)
+    }
+
+    pub fn scope(&self) -> Scope {
         Scope::Select {
             kinds: (Scope::all_kinds()),
-            areas: vec![(self.dim.into(), Area::Rect(Rect::new(a.0, a.1, b.0, b.1)))],
+            areas: vec![(self.dim.into(), Area::Rect(self.rect()))],
         }
     }
 }
