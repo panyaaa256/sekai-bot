@@ -1,47 +1,47 @@
-use anyhow::{Result, bail};
-use sekai_app::{BackupOptions, BackupReport, HostWorldTree, Scope};
+use anyhow::Result;
+use poise::CreateReply;
+use poise::serenity_prelude::CreateEmbed;
+use sekai_app::{BackupOptions, BackupReport};
+use tokio::sync::watch;
 
 use crate::Context;
+use crate::command::Progress;
 use crate::config::Config;
 
 #[poise::command(slash_command, owners_only)]
 pub async fn backup(ctx: Context<'_>, name: Option<String>) -> Result<()> {
     ctx.defer().await?;
 
-    let (world, store) = super::open_world()?;
     let config = Config::load()?;
+    let scope = config.resolve_scope(name)?;
+    let (mut world, store) = super::open_world(&config)?;
 
-    let scope = match name {
-        Some(key) => {
-            let Some(profile) = config.profiles.get(&key) else {
-                bail!("profile not found: {key}");
-            };
-            profile.scope()
-        }
-        None => Scope::World,
-    };
+    let _guard = super::lock_store(ctx)?;
 
-    let Ok(_guard) = ctx.data().store_lock.try_lock() else {
-        ctx.say("another task is already running").await?;
-        return Ok(());
-    };
+    let mut instance = sekai_app::SekaiInstance::init(&store).await?;
 
-    let report = run(world, &store, scope).await?;
-    let res = format!("new blobs: {}", report.new_blobs);
+    let (tx, rx) = watch::channel(None::<Progress>);
+    let mut session = instance.world_mut(&mut world);
+    let work = session.backup(BackupOptions::default(), scope, move |p| {
+        let _ = tx.send(Some(p.into()));
+    });
 
-    ctx.say("backup completed").await?;
-    ctx.say(res).await?;
+    let title = "backup";
+
+    let (handle, (report, _)) = super::with_progress(ctx, title, rx, work).await?;
+
+    handle
+        .edit(ctx, CreateReply::new().embed(complete_embed(title, report)))
+        .await?;
 
     Ok(())
 }
 
-async fn run(mut world: HostWorldTree, store: &str, scope: Scope) -> Result<BackupReport> {
-    let mut instance = sekai_app::SekaiInstance::init(store).await?;
-
-    let (report, _) = instance
-        .world_mut(&mut world)
-        .backup(BackupOptions::default(), scope, |_| {})
-        .await?;
-
-    Ok(report)
+fn complete_embed(title: &str, report: BackupReport) -> CreateEmbed {
+    CreateEmbed::default()
+        .title(title)
+        .description(format!("{title} completed"))
+        .field("new_blobs", report.new_blobs.to_string(), false)
+        .field("chunks", report.chunks.to_string(), false)
+        .field("snapshot", report.snapshot.raw().to_string(), false)
 }

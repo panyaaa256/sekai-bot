@@ -38,9 +38,9 @@ async fn remove(ctx: Context<'_>, name: String) -> Result<()> {
 
     if config.profiles.remove(&name).is_some() {
         config.save()?;
-        ctx.say("Deleted {name} successfully").await?;
+        ctx.say("Deleted {name:?} successfully").await?;
     } else {
-        ctx.say("{name} is not found").await?;
+        ctx.say("{name:?} is not found").await?;
     }
 
     Ok(())

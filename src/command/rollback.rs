@@ -1,51 +1,49 @@
-use anyhow::{Result, bail};
-use sekai_app::{HostWorldTree, RollbackReport, Scope, SnapshotId};
+use anyhow::Result;
+use poise::{CreateReply, serenity_prelude::CreateEmbed};
+use sekai_app::{RollbackOptions, RollbackReport, SnapshotId};
+use tokio::sync::watch;
 
-use crate::{Context, config::Config};
+use crate::{Context, command::Progress, config::Config};
 
 #[poise::command(slash_command, owners_only)]
 pub async fn rollback(ctx: Context<'_>, id: u64, name: Option<String>) -> Result<()> {
     ctx.defer().await?;
 
-    let (world, store) = super::open_world()?;
     let config = Config::load()?;
+    let scope = config.resolve_scope(name)?;
+    let (mut world, store) = super::open_world(&config)?;
 
-    let scope = match name {
-        Some(key) => {
-            let Some(profile) = config.profiles.get(&key) else {
-                bail!("profile not found: {key}");
-            };
-            profile.scope()
-        }
-        None => Scope::World,
-    };
+    let _guard = super::lock_store(ctx)?;
 
-    let Ok(_guard) = ctx.data().store_lock.try_lock() else {
-        ctx.say("another task is already running").await?;
-        return Ok(());
-    };
+    let mut instance = sekai_app::SekaiInstance::open(&store).await?;
 
-    let report = run(world, &store, SnapshotId(id), scope).await?;
-    let res = format!("restored chunks: {}", report.chunks_restored);
+    let (tx, rx) = watch::channel(None::<Progress>);
+    let mut session = instance.world_mut(&mut world);
+    let work = session.rollback(
+        SnapshotId(id),
+        RollbackOptions::default(),
+        scope,
+        move |p| {
+            let _ = tx.send(Some(p.into()));
+        },
+    );
 
-    ctx.say("rollback completed").await?;
-    ctx.say(res).await?;
+    let title = "rollback";
+
+    let (handle, (report, _)) = super::with_progress(ctx, title, rx, work).await?;
+
+    handle
+        .edit(ctx, CreateReply::new().embed(complete_embed(title, report)))
+        .await?;
 
     Ok(())
 }
 
-async fn run(
-    mut world: HostWorldTree,
-    store: &str,
-    id: SnapshotId,
-    scope: Scope,
-) -> Result<RollbackReport> {
-    let mut instance = sekai_app::SekaiInstance::open(store).await?;
-
-    let (report, _) = instance
-        .world_mut(&mut world)
-        .rollback(id, sekai_app::RollbackOptions::default(), scope, |_| {})
-        .await?;
-
-    Ok(report)
+fn complete_embed(title: &str, report: RollbackReport) -> CreateEmbed {
+    CreateEmbed::default()
+        .title(title)
+        .description(format!("{title} completed"))
+        .field("chunks_restored", report.chunks_restored.to_string(), false)
+        .field("files_deleted", report.files_deleted.to_string(), false)
+        .field("files_written", report.files_written.to_string(), false)
 }

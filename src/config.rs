@@ -82,6 +82,18 @@ impl Config {
         }
         Ok(())
     }
+
+    pub fn resolve_scope(&self, name: Option<String>) -> Result<Scope> {
+        match name {
+            Some(key) => {
+                let Some(profile) = self.profiles.get(&key) else {
+                    bail!("profile not found: {key}");
+                };
+                Ok(profile.scope())
+            }
+            None => Ok(Scope::World),
+        }
+    }
 }
 
 impl Profile {
