@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use crate::{Context, config::Config};
 use anyhow::{Result, bail};
-use poise::{CreateReply, serenity_prelude::CreateEmbed};
+use poise::{
+    CreateReply,
+    serenity_prelude::{Colour, CreateEmbed},
+};
 use sekai_app::{BackupProgress, HostWorldTree, RollbackProgress};
 use tokio::{
     sync::{MutexGuard, watch},
@@ -58,18 +61,11 @@ impl From<RollbackProgress> for Progress {
     }
 }
 
-fn progress_embed(title: &str, progress: Option<Progress>) -> CreateEmbed {
-    match progress {
-        Some(progress) => CreateEmbed::new()
-            .title(title)
-            .description("sekai")
-            .field("files_done", progress.files_done.to_string(), false)
-            .field("files_total", progress.files_total.to_string(), false)
-            .field("chunks_done", progress.chunks_done.to_string(), false),
-        None => CreateEmbed::default()
-            .title(title)
-            .description("preparing..."),
-    }
+#[derive(Clone, Copy)]
+enum Status {
+    Preparing,
+    Running,
+    Failed,
 }
 
 async fn with_progress<'a, T>(
@@ -81,7 +77,7 @@ async fn with_progress<'a, T>(
     tokio::pin!(work);
 
     let handle = ctx
-        .send(CreateReply::default().embed(progress_embed(title, None)))
+        .send(CreateReply::default().embed(status_embed(title, None, Status::Preparing)))
         .await?;
 
     let mut tick = tokio::time::interval(Duration::from_millis(500));
@@ -94,12 +90,40 @@ async fn with_progress<'a, T>(
                 if rx.has_changed().unwrap_or(false) {
                     let latest = *rx.borrow_and_update();
                     let _ = handle
-                        .edit(ctx, CreateReply::default().embed(progress_embed(title, latest)))
+                        .edit(ctx, CreateReply::default().embed(status_embed(title, latest, Status::Running)))
                         .await;
                 }
             }
         }
     };
 
+    if result.is_err() {
+        let last = *rx.borrow();
+        let _ = handle
+            .edit(
+                ctx,
+                CreateReply::default().embed(status_embed(title, last, Status::Failed)),
+            )
+            .await;
+    }
+
     Ok((handle, result?))
+}
+
+fn status_embed(title: &str, progress: Option<Progress>, status: Status) -> CreateEmbed {
+    let embed = CreateEmbed::new().title(title);
+
+    let embed = match status {
+        Status::Preparing => embed.color(Colour::BLUE).description("preparing..."),
+        Status::Running => embed.color(Colour::DARK_BLUE).description("running..."),
+        Status::Failed => embed.color(Colour::RED).description("failed"),
+    };
+
+    match progress {
+        Some(progress) => embed
+            .field("files_done", progress.files_done.to_string(), false)
+            .field("files_total", progress.files_total.to_string(), false)
+            .field("chunks_done", progress.chunks_done.to_string(), false),
+        None => embed,
+    }
 }
