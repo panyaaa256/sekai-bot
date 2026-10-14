@@ -1,6 +1,10 @@
 use anyhow::Result;
+use poise::ChoiceParameter;
 use poise::CreateReply;
+use poise::serenity_prelude::Colour;
 use poise::serenity_prelude::CreateEmbed;
+use poise::serenity_prelude::CreateEmbedAuthor;
+use sekai_app::Rect;
 
 use crate::Context;
 use crate::config::{Chunk, Config, Dimension, Profile};
@@ -26,9 +30,8 @@ async fn add(
 
     let mut config = Config::load()?;
 
-    let embed = CreateEmbed::new()
-        .title("profile added")
-        .description(format!("profile: {name} added"));
+    let embed = summary(&name, &profile, Action::Add);
+
     config.profiles.insert(name, profile);
     config.save()?;
 
@@ -37,15 +40,29 @@ async fn add(
 }
 
 #[poise::command(slash_command, owners_only)]
-async fn remove(ctx: Context<'_>, name: String) -> Result<()> {
+async fn remove(
+    ctx: Context<'_>,
+    #[autocomplete = "super::autocomplete_profile"] name: String,
+) -> Result<()> {
     let mut config = Config::load()?;
 
-    if config.profiles.remove(&name).is_some() {
-        config.save()?;
-        ctx.say(format!("Deleted {name:?} successfully")).await?;
+    let embed;
+    let ephemeral;
+
+    if let Some(profile) = config.profiles.get(&name) {
+        embed = summary(&name, profile, Action::Remove);
+        config.profiles.remove(&name);
+        ephemeral = false;
     } else {
-        ctx.say(format!("{name:?} is not found")).await?;
+        embed = CreateEmbed::new()
+            .author(CreateEmbedAuthor::new("Profile Error"))
+            .color(Colour::RED)
+            .description(format!("profile: `{name}` not found"));
+        ephemeral = true;
     }
+
+    ctx.send(CreateReply::new().embed(embed).ephemeral(ephemeral))
+        .await?;
 
     Ok(())
 }
@@ -61,10 +78,36 @@ async fn list(ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
 
-fn summary(profile: &Profile, action: &str) -> CreateEmbed {
-    let rect = profile.rect();
-    let width = i64::from(rect.x1) - i64::from(rect.x0) + 1;
-    let depth = i64::from(rect.z1) - i64::from(rect.z0) + 1;
+enum Action {
+    Add,
+    Remove,
+}
 
-    CreateEmbed::new().title(action)
+impl Action {
+    fn title(&self) -> &'static str {
+        match self {
+            Self::Add => "Added",
+            Self::Remove => "Removed",
+        }
+    }
+}
+
+fn summary(name: &str, profile: &Profile, action: Action) -> CreateEmbed {
+    let Rect { x0, z0, x1, z1 } = profile.rect();
+
+    let area_value = if (x0, z0) == (x1, z1) {
+        format!("({x0}, {z0})")
+    } else {
+        format!("({x0}, {z0}) -> ({x1}, {z1})")
+    };
+
+    CreateEmbed::new()
+        .author(CreateEmbedAuthor::new(format!(
+            "Profile {}",
+            action.title()
+        )))
+        .title(name.to_string())
+        .color(Colour::FOOYOO)
+        .field("dim", profile.dim.name(), true)
+        .field("chunk", area_value, true)
 }

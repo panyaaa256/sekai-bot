@@ -4,7 +4,7 @@ use crate::{Context, config::Config};
 use anyhow::{Result, bail};
 use poise::{
     CreateReply,
-    serenity_prelude::{Colour, CreateEmbed},
+    serenity_prelude::{AutocompleteChoice, Colour, CreateAutocompleteResponse, CreateEmbed},
 };
 use sekai_app::{BackupProgress, HostWorldTree, RollbackProgress};
 use tokio::{
@@ -126,4 +126,21 @@ fn status_embed(title: &str, progress: Option<Progress>, status: Status) -> Crea
             .field("chunks_done", progress.chunks_done.to_string(), false),
         None => embed,
     }
+}
+
+async fn autocomplete_profile(_ctx: Context<'_>, partial: &str) -> CreateAutocompleteResponse {
+    let Ok(config) = Config::load() else {
+        return CreateAutocompleteResponse::new();
+    };
+
+    let mut candidate = Vec::new();
+
+    for key in config.profiles.keys() {
+        if key.contains(partial) {
+            let choice = AutocompleteChoice::new(key, key.to_string());
+            candidate.push(choice);
+        };
+    }
+
+    CreateAutocompleteResponse::new().set_choices(candidate)
 }
