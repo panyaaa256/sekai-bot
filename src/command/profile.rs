@@ -46,22 +46,20 @@ async fn remove(
 ) -> Result<()> {
     let mut config = Config::load()?;
 
-    let embed;
-    let ephemeral;
-
-    if let Some(profile) = config.profiles.get(&name) {
-        embed = summary(&name, profile, Action::Remove);
-        config.profiles.remove(&name);
-        ephemeral = false;
-    } else {
-        embed = CreateEmbed::new()
+    let Some(profile) = config.profiles.remove(&name) else {
+        let embed = CreateEmbed::new()
             .author(CreateEmbedAuthor::new("Profile Error"))
             .color(Colour::RED)
             .description(format!("profile: `{name}` not found"));
-        ephemeral = true;
-    }
 
-    ctx.send(CreateReply::new().embed(embed).ephemeral(ephemeral))
+        ctx.send(CreateReply::new().embed(embed).ephemeral(true))
+            .await?;
+
+        return Ok(());
+    };
+
+    config.save()?;
+    ctx.send(CreateReply::new().embed(summary(&name, &profile, Action::Remove)))
         .await?;
 
     Ok(())
@@ -71,9 +69,64 @@ async fn remove(
 async fn list(ctx: Context<'_>) -> Result<()> {
     let config = Config::load()?;
 
-    for profile in config.profiles {
-        ctx.say(format!("{profile:?}")).await?;
-    }
+    let count = config.profiles.len();
+    let title = format!("{} profile{}", count, if count == 1 { "" } else { "s" });
+
+    let embed = if config.profiles.is_empty() {
+        CreateEmbed::new()
+            .author(CreateEmbedAuthor::new("Profile Error"))
+            .description("Profile not found")
+            .color(Colour::RED)
+    } else {
+        let mut rows = vec![("name", "dim", "chunk".to_string())];
+        rows.extend(
+            config
+                .profiles
+                .iter()
+                .map(|(name, profile)| (name.as_str(), profile.dim.name(), area_text(profile))),
+        );
+
+        let name_width = rows
+            .iter()
+            .map(|(name, _, _)| name.chars().count())
+            .max()
+            .unwrap_or(0);
+        let dim_width = rows
+            .iter()
+            .map(|(_, dim, _)| dim.chars().count())
+            .max()
+            .unwrap_or(0);
+        let area_width = rows
+            .iter()
+            .map(|(_, _, area)| area.chars().count())
+            .max()
+            .unwrap_or(0);
+
+        let mut lines = rows
+            .iter()
+            .map(|(name, dim, area)| format!("{name:<name_width$}  {dim:<dim_width$}  {area}"))
+            .collect::<Vec<_>>();
+
+        lines.insert(
+            1,
+            format!(
+                "{}  {}  {}",
+                "-".repeat(name_width),
+                "-".repeat(dim_width),
+                "-".repeat(area_width)
+            ),
+        );
+
+        let description = format!("```\n{}\n```", lines.join("\n"));
+
+        CreateEmbed::new()
+            .color(Colour::FOOYOO)
+            .author(CreateEmbedAuthor::new("Profile List"))
+            .title(title)
+            .description(description)
+    };
+
+    ctx.send(CreateReply::new().embed(embed)).await?;
 
     Ok(())
 }
@@ -93,14 +146,6 @@ impl Action {
 }
 
 fn summary(name: &str, profile: &Profile, action: Action) -> CreateEmbed {
-    let Rect { x0, z0, x1, z1 } = profile.rect();
-
-    let area_value = if (x0, z0) == (x1, z1) {
-        format!("({x0}, {z0})")
-    } else {
-        format!("({x0}, {z0}) -> ({x1}, {z1})")
-    };
-
     CreateEmbed::new()
         .author(CreateEmbedAuthor::new(format!(
             "Profile {}",
@@ -109,5 +154,15 @@ fn summary(name: &str, profile: &Profile, action: Action) -> CreateEmbed {
         .title(name.to_string())
         .color(Colour::FOOYOO)
         .field("dim", profile.dim.name(), true)
-        .field("chunk", area_value, true)
+        .field("chunk", area_text(profile), true)
+}
+
+fn area_text(profile: &Profile) -> String {
+    let Rect { x0, z0, x1, z1 } = profile.rect();
+
+    if (x0, z0) == (x1, z1) {
+        format!("({x0}, {z0})")
+    } else {
+        format!("({x0}, {z0}) -> ({x1}, {z1})")
+    }
 }
