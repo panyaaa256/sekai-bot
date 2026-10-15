@@ -9,7 +9,11 @@ use sekai_app::Rect;
 use crate::Context;
 use crate::config::{Chunk, Config, Dimension, Profile};
 
-#[poise::command(slash_command, owners_only, subcommands("add", "remove", "list"))]
+#[poise::command(
+    slash_command,
+    owners_only,
+    subcommands("add", "remove", "list", "edit")
+)]
 pub async fn profile(_ctx: Context<'_>) -> Result<()> {
     Ok(())
 }
@@ -24,11 +28,23 @@ async fn add(
     x2: i32,
     z2: i32,
 ) -> Result<()> {
+    let mut config = Config::load()?;
+
+    if config.profiles.contains_key(&name) {
+        let embed = CreateEmbed::new()
+            .color(Colour::RED)
+            .author(CreateEmbedAuthor::new("Profile Error"))
+            .description(format!("profile: `{name}` is already exist"));
+
+        ctx.send(CreateReply::new().embed(embed).ephemeral(true))
+            .await?;
+
+        return Ok(());
+    };
+
     let chunk1 = Chunk::new(x1, z1);
     let chunk2 = Chunk::new(x2, z2);
     let profile = Profile::new(dim, chunk1, chunk2);
-
-    let mut config = Config::load()?;
 
     let embed = summary(&name, &profile, Action::Add);
 
@@ -61,6 +77,44 @@ async fn remove(
     config.save()?;
     ctx.send(CreateReply::new().embed(summary(&name, &profile, Action::Remove)))
         .await?;
+
+    Ok(())
+}
+
+#[poise::command(slash_command, owners_only)]
+async fn edit(
+    ctx: Context<'_>,
+    #[autocomplete = "super::autocomplete_profile"] name: String,
+    dim: Dimension,
+    x1: i32,
+    z1: i32,
+    x2: i32,
+    z2: i32,
+) -> Result<()> {
+    let mut config = Config::load()?;
+
+    if !config.profiles.contains_key(&name) {
+        let embed = CreateEmbed::new()
+            .color(Colour::RED)
+            .author(CreateEmbedAuthor::new("Profile Error"))
+            .description(format!("profile: `{name}` not found"));
+
+        ctx.send(CreateReply::new().embed(embed).ephemeral(true))
+            .await?;
+
+        return Ok(());
+    }
+
+    let chunk1 = Chunk::new(x1, z1);
+    let chunk2 = Chunk::new(x2, z2);
+    let profile = Profile::new(dim, chunk1, chunk2);
+
+    let embed = summary(&name, &profile, Action::Edit);
+
+    config.profiles.insert(name, profile);
+    config.save()?;
+
+    ctx.send(CreateReply::new().embed(embed)).await?;
 
     Ok(())
 }
@@ -134,6 +188,7 @@ async fn list(ctx: Context<'_>) -> Result<()> {
 enum Action {
     Add,
     Remove,
+    Edit,
 }
 
 impl Action {
@@ -141,6 +196,7 @@ impl Action {
         match self {
             Self::Add => "Added",
             Self::Remove => "Removed",
+            Self::Edit => "Edited",
         }
     }
 }
