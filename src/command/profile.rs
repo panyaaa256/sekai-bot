@@ -31,13 +31,9 @@ async fn add(
     let mut config = Config::load()?;
 
     if config.profiles.contains_key(&name) {
-        let embed = CreateEmbed::new()
-            .color(Colour::RED)
-            .author(CreateEmbedAuthor::new("Profile Error"))
-            .description(format!("profile: `{name}` is already exist"));
+        let reply = error_reply(format!("Profile: `{name}` already exists"));
 
-        ctx.send(CreateReply::new().embed(embed).ephemeral(true))
-            .await?;
+        ctx.send(reply).await?;
 
         return Ok(());
     };
@@ -46,12 +42,12 @@ async fn add(
     let chunk2 = Chunk::new(x2, z2);
     let profile = Profile::new(dim, chunk1, chunk2);
 
-    let embed = summary(&name, &profile, Action::Add);
+    let reply = summary_reply(&name, &profile, Action::Add);
 
     config.profiles.insert(name, profile);
     config.save()?;
 
-    ctx.send(CreateReply::new().embed(embed)).await?;
+    ctx.send(reply).await?;
     Ok(())
 }
 
@@ -63,19 +59,15 @@ async fn remove(
     let mut config = Config::load()?;
 
     let Some(profile) = config.profiles.remove(&name) else {
-        let embed = CreateEmbed::new()
-            .color(Colour::RED)
-            .author(CreateEmbedAuthor::new("Profile Error"))
-            .description(format!("profile: `{name}` not found"));
+        let reply = error_reply(format!("Profile: `{name}` not found"));
 
-        ctx.send(CreateReply::new().embed(embed).ephemeral(true))
-            .await?;
+        ctx.send(reply).await?;
 
         return Ok(());
     };
 
     config.save()?;
-    ctx.send(CreateReply::new().embed(summary(&name, &profile, Action::Remove)))
+    ctx.send(summary_reply(&name, &profile, Action::Remove))
         .await?;
 
     Ok(())
@@ -94,13 +86,9 @@ async fn edit(
     let mut config = Config::load()?;
 
     if !config.profiles.contains_key(&name) {
-        let embed = CreateEmbed::new()
-            .color(Colour::RED)
-            .author(CreateEmbedAuthor::new("Profile Error"))
-            .description(format!("profile: `{name}` not found"));
+        let reply = error_reply(format!("Profile: `{name}` not found"));
 
-        ctx.send(CreateReply::new().embed(embed).ephemeral(true))
-            .await?;
+        ctx.send(reply).await?;
 
         return Ok(());
     }
@@ -109,12 +97,12 @@ async fn edit(
     let chunk2 = Chunk::new(x2, z2);
     let profile = Profile::new(dim, chunk1, chunk2);
 
-    let embed = summary(&name, &profile, Action::Edit);
+    let reply = summary_reply(&name, &profile, Action::Edit);
 
     config.profiles.insert(name, profile);
     config.save()?;
 
-    ctx.send(CreateReply::new().embed(embed)).await?;
+    ctx.send(reply).await?;
 
     Ok(())
 }
@@ -126,21 +114,12 @@ async fn info(
 ) -> Result<()> {
     let config = Config::load()?;
 
-    let count = config.profiles.len();
-    let title = format!("{} profile{}", count, if count == 1 { "" } else { "s" });
-
-    let embed = if config.profiles.is_empty() {
-        CreateEmbed::new()
-            .color(Colour::RED)
-            .author(CreateEmbedAuthor::new("Profile Error"))
-            .description("Profile not found")
+    let reply = if config.profiles.is_empty() {
+        error_reply("No profiles registered")
     } else if let Some(key) = name {
         match config.profiles.get(&key) {
-            Some(profile) => summary(&key, profile, Action::Info),
-            None => CreateEmbed::new()
-                .color(Colour::RED)
-                .author(CreateEmbedAuthor::new("Profile Error"))
-                .description(format!("Profile: `{key}` not found")),
+            Some(profile) => summary_reply(&key, profile, Action::Info),
+            None => error_reply(format!("Profile: `{key}` not found")),
         }
     } else {
         let mut rows = vec![("name", "dim", "center".to_string(), "size".to_string())];
@@ -190,15 +169,19 @@ async fn info(
             ),
         );
         let description = format!("```\n{}\n```", lines.join("\n"));
+        let count = config.profiles.len();
+        let title = format!("{} profile{}", count, if count == 1 { "" } else { "s" });
 
-        CreateEmbed::new()
-            .color(Colour::FOOYOO)
-            .author(CreateEmbedAuthor::new("Profile List"))
-            .title(title)
-            .description(description)
+        CreateReply::new().embed(
+            CreateEmbed::new()
+                .color(Colour::FOOYOO)
+                .author(CreateEmbedAuthor::new("Profile List"))
+                .title(title)
+                .description(description),
+        )
     };
 
-    ctx.send(CreateReply::new().embed(embed)).await?;
+    ctx.send(reply).await?;
 
     Ok(())
 }
@@ -221,18 +204,29 @@ impl Action {
     }
 }
 
-fn summary(name: &str, profile: &Profile, action: Action) -> CreateEmbed {
-    CreateEmbed::new()
-        .color(Colour::FOOYOO)
-        .author(CreateEmbedAuthor::new(format!(
-            "Profile {}",
-            action.title()
-        )))
-        .title(name.to_string())
-        .field("dim", profile.dim.name(), true)
-        .field("center", center_text(profile), true)
-        .field("size", size_text(profile), true)
-        .field("range", area_text(profile), false)
+fn summary_reply(name: &str, profile: &Profile, action: Action) -> CreateReply {
+    CreateReply::new().embed(
+        CreateEmbed::new()
+            .color(Colour::FOOYOO)
+            .author(CreateEmbedAuthor::new(format!(
+                "Profile {}",
+                action.title()
+            )))
+            .title(name.to_string())
+            .field("dim", profile.dim.name(), true)
+            .field("center", center_text(profile), true)
+            .field("size", size_text(profile), true)
+            .field("range", area_text(profile), false),
+    )
+}
+
+fn error_reply(description: impl Into<String>) -> CreateReply {
+    CreateReply::new().ephemeral(true).embed(
+        CreateEmbed::new()
+            .color(Colour::RED)
+            .author(CreateEmbedAuthor::new("Profile Error"))
+            .description(description),
+    )
 }
 
 fn area_text(profile: &Profile) -> String {

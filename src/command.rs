@@ -133,14 +133,13 @@ async fn autocomplete_profile(_ctx: Context<'_>, partial: &str) -> CreateAutocom
         return CreateAutocompleteResponse::new();
     };
 
-    let mut candidate = Vec::new();
-
-    for key in config.profiles.keys() {
-        if key.contains(partial) {
-            let choice = AutocompleteChoice::new(key, key.to_string());
-            candidate.push(choice);
-        };
-    }
+    let candidate = config
+        .profiles
+        .keys()
+        .filter(|key| key.contains(partial))
+        .take(25)
+        .map(|key| AutocompleteChoice::new(key, key.to_string()))
+        .collect();
 
     CreateAutocompleteResponse::new().set_choices(candidate)
 }
