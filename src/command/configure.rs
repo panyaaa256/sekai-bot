@@ -7,7 +7,6 @@ use crate::config::Config;
 #[derive(poise::ChoiceParameter, Debug)]
 enum Key {
     RootPath,
-    Profile,
 }
 
 #[poise::command(slash_command, owners_only, rename = "config")]
@@ -19,11 +18,6 @@ pub async fn configure(ctx: Context<'_>, key: Key, value: String) -> Result<()> 
             let root = PathBuf::from(value);
             config.root_path = root;
             config.validate()?;
-        }
-        Key::Profile => {
-            // TODO: add custom area
-            ctx.say("not implemented").await?;
-            return Ok(());
         }
     }
 

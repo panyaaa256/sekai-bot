@@ -48,8 +48,8 @@ async fn remove(
 
     let Some(profile) = config.profiles.remove(&name) else {
         let embed = CreateEmbed::new()
-            .author(CreateEmbedAuthor::new("Profile Error"))
             .color(Colour::RED)
+            .author(CreateEmbedAuthor::new("Profile Error"))
             .description(format!("profile: `{name}` not found"));
 
         ctx.send(CreateReply::new().embed(embed).ephemeral(true))
@@ -74,9 +74,9 @@ async fn list(ctx: Context<'_>) -> Result<()> {
 
     let embed = if config.profiles.is_empty() {
         CreateEmbed::new()
+            .color(Colour::RED)
             .author(CreateEmbedAuthor::new("Profile Error"))
             .description("Profile not found")
-            .color(Colour::RED)
     } else {
         let mut rows = vec![("name", "dim", "chunk".to_string())];
         rows.extend(
