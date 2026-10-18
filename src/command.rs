@@ -16,6 +16,7 @@ pub mod backup;
 pub mod configure;
 pub mod profile;
 pub mod rollback;
+pub mod tag;
 
 fn open_world(config: &Config) -> Result<(HostWorldTree, String)> {
     config.validate()?;

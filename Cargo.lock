@@ -760,7 +760,7 @@ dependencies = [
  "http",
  "hyper",
  "hyper-util",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "tokio",
  "tokio-rustls 0.26.6",
  "tower-service",
@@ -960,9 +960,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.190"
+version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
+checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libsqlite3-sys"
@@ -1227,7 +1227,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "socket2",
  "thiserror 2.0.21",
  "tokio",
@@ -1248,7 +1248,7 @@ dependencies = [
  "rand_pcg",
  "ring",
  "rustc-hash",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.21",
@@ -1402,7 +1402,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -1471,9 +1471,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "once_cell",
  "ring",
@@ -1555,7 +1555,7 @@ dependencies = [
 [[package]]
 name = "sekai-anvil"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 dependencies = [
  "blake3",
  "crc32fast",
@@ -1568,7 +1568,7 @@ dependencies = [
 [[package]]
 name = "sekai-app"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 dependencies = [
  "sekai-anvil",
  "sekai-core",
@@ -1595,7 +1595,7 @@ dependencies = [
 [[package]]
 name = "sekai-core"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 dependencies = [
  "blake3",
  "sekai-anvil",
@@ -1606,7 +1606,7 @@ dependencies = [
 [[package]]
 name = "sekai-nbt"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 dependencies = [
  "blake3",
  "sekai-util",
@@ -1615,7 +1615,7 @@ dependencies = [
 [[package]]
 name = "sekai-storage"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 dependencies = [
  "sekai-core",
  "sqlx",
@@ -1625,12 +1625,12 @@ dependencies = [
 [[package]]
 name = "sekai-util"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 
 [[package]]
 name = "sekai-world"
 version = "0.1.0"
-source = "git+https://github.com/TMCJapan/sekai.git?branch=main#46b42f234a4dd75ba30c4fb67195027863b9a161"
+source = "git+https://github.com/TMCJapan/sekai.git?branch=main#ef1816cfc8007b9079f49e067308cc1f8a7c30f6"
 dependencies = [
  "sekai-anvil",
  "sekai-core",
@@ -2136,7 +2136,7 @@ version = "0.26.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9cc2678c2cdd569ef8215e2afd7954ada2ae20b4fdd2c5fe6139a3b02d105db"
 dependencies = [
- "rustls 0.23.45",
+ "rustls 0.23.46",
  "tokio",
 ]
 
